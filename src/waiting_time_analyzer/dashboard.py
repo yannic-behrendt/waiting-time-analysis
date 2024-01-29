@@ -1,0 +1,86 @@
+import dash
+from dash import html, dcc, callback, Output, Input
+
+from graph_generator import seconds_to_dhms_string, get_sorce_target_from_hover_data, generate_scatter, \
+    generate_histogram, generate_sankey
+
+from src.waiting_time_analyzer import config
+
+
+def generate_and_serve_dashboard(metrics, transitions):
+
+    app = dash.Dash(__name__)
+
+    sankey_div = html.Div([dcc.Graph(id='sankey-plot')], style={'width': '66%', 'padding': '20px'})
+
+    # Filter div with 33% width
+    filter_div = html.Div(
+        children=[
+            dcc.Dropdown(
+                id='metric-dropdown',
+                options=[{'label': key, 'value': key} for key in metrics.keys()],
+                value='median',
+            ),
+            dcc.Checklist(
+                id='global-color-scale',
+                options=[{'label': 'Use global color scale', 'value': True}],
+                value=[]
+            ),
+            html.Div([html.Plaintext(id='hover-details', children="Hover over a Sankey element to see details:")])
+        ],
+        style={'width': '33%', 'padding': '20px'}
+    )
+
+    # Details div with children having even spacing horizontally
+    details_div = html.Div([
+        html.Div([dcc.Graph(id='scatter-plot', figure={})], style={'flex': 1}),
+        html.Div([dcc.Graph(id='hist-plot', figure={})], style={'flex': 1}),
+    ], style={'display': 'flex', 'flex-wrap': 'wrap'})
+
+    # Overall layout
+    app.layout = html.Div(
+        style={'backgroundColor': 'white', 'zoom': '100%'},
+        children=[
+            html.Div(style={'display': 'flex'}, children=[sankey_div, filter_div]),  # First row
+            details_div,  # Second row
+        ]
+    )
+
+    @callback(
+        Output('hover-details', 'children'),
+        Output('scatter-plot', 'figure'),
+        Output('hist-plot', 'figure'),
+        Input('sankey-plot', 'hoverData'),
+        Input('global-color-scale', 'value')
+    )
+    def update_details(hover_data, color_scale_global):
+        node = get_sorce_target_from_hover_data(transitions, hover_data)
+
+        if node is None:
+            return "", {}, {}
+
+        _metrics = [f"{k} : {seconds_to_dhms_string(v)}" for k, v in transitions[node].items() if
+                    k != config.WAITING]
+
+        if color_scale_global:
+            color_scale_global = (min(metrics['min']), max(metrics['max']))
+
+        return ("\n".join(_metrics),
+                generate_scatter(node, transitions[node], color_scale_global),
+                generate_histogram(node, transitions, color_scale_global)
+                )
+
+    # Filter Sankey
+    @callback(
+        Output('sankey-plot', 'figure'),
+        Input('metric-dropdown', 'value'),
+        Input('global-color-scale', 'value')
+    )
+    def update_sankey(metric, color_scale_global):
+
+        if color_scale_global:
+            color_scale_global = (min(metrics['min']), max(metrics['max']))
+
+        return generate_sankey(metric, metrics, transitions, color_scale_global)
+
+    app.run_server()

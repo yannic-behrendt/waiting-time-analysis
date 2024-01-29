@@ -1,1 +1,4 @@
 *.xes
+/lib/scylla
+/lib/BPSimpyLibrary-main
+.idea

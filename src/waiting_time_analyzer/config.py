@@ -1,0 +1,7 @@
+ACTIVITY = "concept:name"
+TRACE = "case:concept:name"
+TIMESTAMP = "time:timestamp"
+END = "time:timestamp"
+START = "start_timestamp"
+WAITING = "waiting_times"
+DURATION = "duration"
