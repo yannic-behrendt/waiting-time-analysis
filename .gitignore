@@ -1,4 +1,7 @@
 *.xes
+*.csv
+*.bpmn
 /lib/scylla
 /lib/BPSimpyLibrary-main
 .idea
+/waiting-time-analysis-caise2023/
