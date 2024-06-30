@@ -2,6 +2,7 @@ import logging
 import BPSimpy
 import pm4py
 import pandas as pd
+import argparse
 
 from pm4py.objects.conversion.log import converter as log_converter
 from pm4py.objects.log.util import dataframe_utils
@@ -46,16 +47,27 @@ def get_event_log_from_xes(xes_file, top_k=1):
     return pm4py.convert_to_dataframe(interval_lifecycle.to_interval(pm4py.convert_to_event_log(event_log)))
 
 
-if __name__ == '__main__':
-    # import log
-    # log = get_event_log_from_xes('../event_logs/'BPI_Challenge_2012.xes'')
-    # log = get_event_log_from_xes('../event_logs/example.xes')
-    # log = get_event_log_from_csv('../event_logs/PurchasingExample.csv')
+def main(**keyword_arguments):
+    print("Keyword arguments:", keyword_arguments)
 
-    log = get_event_log_from_csv('../running_example/PurchasingExample.csv', top_k=10)
-    reasons = get_lashkevich_reasons('../running_example/PurchasingExample_transitions_report.csv')
+    if keyword_arguments['event_log'].endswith('.csv'):
+        log = get_event_log_from_csv(keyword_arguments['event_log'], top_k=keyword_arguments['top_k'])
+    else:
+        log = get_event_log_from_xes(keyword_arguments['event_log'], top_k=keyword_arguments['top_k'])
 
-    dfg, sa, ea = pm4py.discover_dfg(log)
+    reasons = get_lashkevich_reasons(keyword_arguments['reasons_report'])
 
     activities, transitions, metrics, trace_durations, trace_count = parse_event_log(log)
     dashboard.generate_and_serve_dashboard(metrics, transitions, reasons)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='test')
+
+    parser.add_argument('--event_log', type=str, help='Path to the eventlog file in xes or csv')
+    parser.add_argument('--reasons_report', type=str,
+                        help='Path to the report created by the program from Lashkevich et al.')
+    parser.add_argument('--top_k', type=int, help='filter the event log by top k most frequent paths')
+    args = parser.parse_args()
+    kwargs = vars(args)
+    main(**kwargs)
