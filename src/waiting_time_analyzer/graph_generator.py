@@ -56,11 +56,11 @@ def get_color(value, min_value, max_value):
     return f'hsl({hue}, {saturation}%, {lightness}%)'
 
 
-def generate_scatter(node, node_metrics, color_scale_global):
-    if node is None or node_metrics is None:
+def generate_scatter(transition, transition_metrics, color_scale_global):
+    if transition is None or transition_metrics is None:
         return {'layout': go.Layout(title=f'Hover over Link for information')}
 
-    y_axis = node_metrics[config.WAITING]
+    y_axis = transition_metrics[config.WAITING]
     x_axis = [i for i in range(len(y_axis))]
 
     y_ticks = select_custom_tickvals(y_axis)
@@ -83,16 +83,41 @@ def generate_scatter(node, node_metrics, color_scale_global):
     }
 
 
-def generate_reasons_bar_chart(transition, performance):
-    performance = performance[
-        (performance['source_activity'] == transition[0]) & (performance['destination_activity'] == transition[1])]
+def generate_box_chart(transition):
+    waiting_times = transition[config.WAITING]
+    hover_text = [seconds_to_dhms_string(time) for time in waiting_times]
 
-    wt_total = performance['wt_total'].sum()
-    wt_contention = performance['wt_contention'].sum()
-    wt_batching = performance['wt_batching'].sum()
-    wt_prio = performance['wt_prioritization'].sum()
-    wt_unavailability = performance['wt_unavailability'].sum()
-    wt_extraneous = performance['wt_extraneous'].sum()
+    fig = go.Figure(
+        data=go.Box(
+            x=waiting_times,
+            boxpoints=False,
+            jitter=0.3,
+            pointpos=-1.8,
+            hovertext=hover_text,
+            hoverinfo='x+y+text'
+        )
+    )
+
+    # Update layout
+    fig.update_layout(
+        title='Box Plot',
+        xaxis_title='Duration',
+        yaxis_title='Waiting Times',
+        showlegend=True
+    )
+    return fig
+
+
+def generate_reasons_bar_chart(transition, reasons):
+    reasons = reasons[
+        (reasons[config.REASONS_SRC] == transition[0]) & (reasons[config.REASONS_DEST] == transition[1])]
+
+    wt_total = reasons[config.REASONS_TOTAL].sum()
+    wt_contention = reasons[config.REASONS_CONTENTION].sum()
+    wt_batching = reasons[config.REASONS_BATCHING].sum()
+    wt_prio = reasons[config.REASONS_PRIO].sum()
+    wt_unavailability = reasons[config.REASONS_UNAVAILABILITY].sum()
+    wt_extraneous = reasons[config.REASONS_EXTRANEOUS].sum()
 
     categories = ['Wait Time Reasons']
 
@@ -154,8 +179,9 @@ def generate_reasons_bar_chart(transition, performance):
 
     return fig
 
-def generate_histogram(node, transitions, color_scale_global):
-    data = transitions[node][config.WAITING]
+
+def generate_histogram(transition, transitions, color_scale_global):
+    data = transitions[transition][config.WAITING]
     data = [int(v) for v in data]
 
     unique_values, value_counts = np.unique(data, return_counts=True)
@@ -207,7 +233,7 @@ def generate_sankey(metric_name, metrics, transitions, color_scale_global=False)
         )))
 
 
-def get_sorce_target_from_hover_data(transitions, hover_data):
+def get_transition_from_hover_data(transitions, hover_data):
     source, target = zip(*transitions.keys())
     if hover_data is None:
         return

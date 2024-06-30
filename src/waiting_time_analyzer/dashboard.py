@@ -1,8 +1,8 @@
 import dash
 from dash import html, dcc, callback, Output, Input
 
-from graph_generator import seconds_to_dhms_string, get_sorce_target_from_hover_data, generate_scatter, \
-    generate_histogram, generate_sankey, generate_reasons_bar_chart
+from graph_generator import seconds_to_dhms_string, get_transition_from_hover_data, generate_scatter, \
+    generate_histogram, generate_sankey, generate_reasons_bar_chart, generate_box_chart
 
 from src.waiting_time_analyzer import config
 
@@ -26,13 +26,13 @@ def generate_and_serve_dashboard(metrics, transitions, reasons):
                 options=[{'label': 'Use global color scale', 'value': True}],
                 value=[]
             ),
-            html.Div([html.Plaintext(id='hover-details', children="Hover over a Sankey element to see details:")])
         ],
         style={'width': '33%', 'padding': '20px'}
     )
 
     # Details div with children having even spacing horizontally
     details_div = html.Div([
+        html.Div([dcc.Graph(id='box-chart', figure={})], style={'flex': 1}),
         html.Div([dcc.Graph(id='scatter-plot', figure={})], style={'flex': 1}),
         html.Div([dcc.Graph(id='hist-plot', figure={})], style={'flex': 1}),
         html.Div([dcc.Graph(id='reasons-plot', figure={})], style={'flex': 1})
@@ -49,7 +49,7 @@ def generate_and_serve_dashboard(metrics, transitions, reasons):
     )
 
     @callback(
-        Output('hover-details', 'children'),
+        Output('box-chart', 'figure'),
         Output('scatter-plot', 'figure'),
         Output('hist-plot', 'figure'),
         Output('reasons-plot', 'figure'),
@@ -57,21 +57,18 @@ def generate_and_serve_dashboard(metrics, transitions, reasons):
         Input('global-color-scale', 'value')
     )
     def update_details(hover_data, color_scale_global):
-        node = get_sorce_target_from_hover_data(transitions, hover_data)
+        transition = get_transition_from_hover_data(transitions, hover_data)
 
-        if node is None:
-            return "", {}, {}
-
-        _metrics = [f"{k} : {seconds_to_dhms_string(v)}" for k, v in transitions[node].items() if
-                    k != config.WAITING]
+        if transition is None:
+            return {}, {}, {}, {}
 
         if color_scale_global:
             color_scale_global = (min(metrics['min']), max(metrics['max']))
 
-        return ("\n".join(_metrics),
-                generate_scatter(node, transitions[node], color_scale_global),
-                generate_histogram(node, transitions, color_scale_global),
-                generate_reasons_bar_chart(node, reasons)
+        return (generate_box_chart(transitions[transition]),
+                generate_scatter(transition, transitions[transition], color_scale_global),
+                generate_histogram(transition, transitions, color_scale_global),
+                generate_reasons_bar_chart(transition, reasons)
                 )
 
     # Filter Sankey
