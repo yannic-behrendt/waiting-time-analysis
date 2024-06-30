@@ -1,5 +1,4 @@
 import logging
-import BPSimpy
 import pm4py
 import pandas as pd
 import argparse
@@ -10,14 +9,6 @@ from pm4py.objects.log.util import interval_lifecycle
 
 from event_log_parser import parse_event_log
 from src.waiting_time_analyzer import dashboard
-
-
-def get_BPSIM(event_log, file_name="bpsim.xml"):
-    net, initial_marking, final_marking = pm4py.discover_petri_net_inductive(log)
-    bpmn = pm4py.convert_to_bpmn((net, initial_marking, final_marking))
-
-    pm4py.write_bpmn(bpmn, file_name)
-    example = BPSimpy.BPSim(file_name, verbosity=None)
 
 
 def get_lashkevich_reasons(report_csv_file, separator=','):
