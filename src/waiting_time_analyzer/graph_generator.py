@@ -56,11 +56,11 @@ def get_color(value, min_value, max_value):
     return f'hsl({hue}, {saturation}%, {lightness}%)'
 
 
-def generate_scatter(transition, transition_metrics, color_scale_global):
-    if transition is None or transition_metrics is None:
+def generate_scatter(transition, color_scale_global):
+    if transition is None:
         return {'layout': go.Layout(title=f'Hover over Link for information')}
 
-    y_axis = transition_metrics[config.WAITING]
+    y_axis = transition[config.WAITING]
     x_axis = [i for i in range(len(y_axis))]
 
     y_ticks = select_custom_tickvals(y_axis)
@@ -73,7 +73,6 @@ def generate_scatter(transition, transition_metrics, color_scale_global):
             marker=dict(color=get_colors(y_axis, color_scale_global))
         )],
         'layout': go.Layout(
-            title='Scattergram of waiting times',
             yaxis=dict(
                 title='Duration',
                 tickvals=y_ticks,
@@ -83,27 +82,32 @@ def generate_scatter(transition, transition_metrics, color_scale_global):
     }
 
 
-def generate_box_chart(transition):
-    waiting_times = transition[config.WAITING]
+def generate_box_chart(data):
+    waiting_times = data[config.WAITING]
     hover_text = [seconds_to_dhms_string(time) for time in waiting_times]
+
+    unique_values, value_counts = np.unique(waiting_times, return_counts=True)
+    x_ticks = select_custom_tickvals(waiting_times, math.floor(len(unique_values) / 10))
 
     fig = go.Figure(
         data=go.Box(
+            name='',
             x=waiting_times,
-            boxpoints=False,
+            boxpoints='all',
             jitter=0.3,
             pointpos=-1.8,
-            hovertext=hover_text,
-            hoverinfo='x+y+text'
+            hovertemplate=hover_text,
         )
     )
 
     # Update layout
     fig.update_layout(
-        title='Box Plot',
-        xaxis_title='Duration',
-        yaxis_title='Waiting Times',
-        showlegend=True
+        yaxis_title='Distribution',
+        xaxis=dict(
+            title='Waiting Time',
+            tickvals=x_ticks,
+            ticktext=[seconds_to_dhms_string(s) for s in x_ticks]
+        )
     )
     return fig
 
@@ -167,8 +171,6 @@ def generate_reasons_bar_chart(transition, reasons):
     # Update layout to stack bars and customize y-axis
     fig.update_layout(
         barmode='stack',
-        title='Reasons for Waiting',
-        xaxis_title='Category',
         yaxis_title='Total Waiting Time',
         yaxis=dict(
             tickmode='array',
@@ -195,7 +197,6 @@ def generate_histogram(transition, transitions, color_scale_global):
     )
 
     layout = go.Layout(
-        title='Histogram of waiting times',
         xaxis=dict(
             title='Waiting Time',
             tickvals=x_ticks,
