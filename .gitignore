@@ -1,6 +1,7 @@
 *.xes
 *.csv
 *.bpmn
+*.json
 /lib/scylla
 /lib/BPSimpyLibrary-main
 .idea

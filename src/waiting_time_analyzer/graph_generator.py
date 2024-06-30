@@ -1,3 +1,5 @@
+import math
+
 from src.waiting_time_analyzer import config
 import numpy as np
 import plotly.graph_objects as go
@@ -71,7 +73,9 @@ def generate_scatter(node, node_metrics, color_scale_global):
             marker=dict(color=get_colors(y_axis, color_scale_global))
         )],
         'layout': go.Layout(
+            title='Scattergram of waiting times',
             yaxis=dict(
+                title='Duration',
                 tickvals=y_ticks,
                 ticktext=[seconds_to_dhms_string(s) for s in y_ticks]
             )
@@ -79,12 +83,83 @@ def generate_scatter(node, node_metrics, color_scale_global):
     }
 
 
+def generate_reasons_bar_chart(transition, performance):
+    performance = performance[
+        (performance['source_activity'] == transition[0]) & (performance['destination_activity'] == transition[1])]
+
+    wt_total = performance['wt_total'].sum()
+    wt_contention = performance['wt_contention'].sum()
+    wt_batching = performance['wt_batching'].sum()
+    wt_prio = performance['wt_prioritization'].sum()
+    wt_unavailability = performance['wt_unavailability'].sum()
+    wt_extraneous = performance['wt_extraneous'].sum()
+
+    categories = ['Wait Time Reasons']
+
+    fig = go.Figure()
+
+    # Add each value as a separate trace
+    fig.add_trace(go.Bar(
+        x=categories,
+        y=[wt_contention],
+        name='Resource Contention',
+        hovertemplate=seconds_to_dhms_string(wt_contention),
+    ))
+
+    fig.add_trace(go.Bar(
+        x=categories,
+        y=[wt_batching],
+        name='Batching',
+        hovertemplate=seconds_to_dhms_string(wt_contention),
+    ))
+
+    fig.add_trace(go.Bar(
+        x=categories,
+        y=[wt_prio],
+        name='Prioritization',
+        hovertemplate=seconds_to_dhms_string(wt_contention),
+    ))
+
+    fig.add_trace(go.Bar(
+        x=categories,
+        y=[wt_unavailability],
+        name='Unavailability',
+        hovertemplate=seconds_to_dhms_string(wt_contention),
+    ))
+
+    fig.add_trace(go.Bar(
+        x=categories,
+        y=[wt_extraneous],
+        name='Extraneous',
+        hovertemplate=seconds_to_dhms_string(wt_contention),
+    ))
+
+    # Define custom tick values and labels
+
+    tickvals = list(range(0, int(wt_total) + 1, int(wt_total // 10)))
+    ticktext = [seconds_to_dhms_string(s) for s in tickvals]
+
+    # Update layout to stack bars and customize y-axis
+    fig.update_layout(
+        barmode='stack',
+        title='Reasons for Waiting',
+        xaxis_title='Category',
+        yaxis_title='Total Waiting Time',
+        yaxis=dict(
+            tickmode='array',
+            tickvals=tickvals,
+            ticktext=ticktext
+        )
+    )
+
+    return fig
+
 def generate_histogram(node, transitions, color_scale_global):
     data = transitions[node][config.WAITING]
     data = [int(v) for v in data]
 
     unique_values, value_counts = np.unique(data, return_counts=True)
-    x_ticks = select_custom_tickvals(data, len(unique_values))
+    x_ticks = select_custom_tickvals(data, math.floor(len(unique_values) / 10))
 
     trace = go.Histogram(
         x=data,
@@ -94,6 +169,7 @@ def generate_histogram(node, transitions, color_scale_global):
     )
 
     layout = go.Layout(
+        title='Histogram of waiting times',
         xaxis=dict(
             title='Waiting Time',
             tickvals=x_ticks,
