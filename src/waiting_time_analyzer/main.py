@@ -8,7 +8,7 @@ from pm4py.objects.log.util import dataframe_utils
 from pm4py.objects.log.util import interval_lifecycle
 
 from event_log_parser import parse_event_log
-from src.waiting_time_analyzer import dashboard
+from src.waiting_time_analyzer import dashboard, config
 
 
 def get_lashkevich_reasons(report_csv_file, separator=','):
@@ -48,6 +48,14 @@ def main(**keyword_arguments):
 
     reasons = get_lashkevich_reasons(keyword_arguments['reasons_report'])
 
+    if keyword_arguments['case'] is not None:
+        print('not none')
+        reasons = reasons[(reasons[config.REASONS_TRACE] == keyword_arguments['case'])]
+        log = log[(log[config.TRACE] == keyword_arguments['case'])]
+
+    dfg, sa, ea = pm4py.discover_dfg(log)
+    pm4py.view_dfg(dfg, sa, ea)
+
     activities, transitions, metrics, trace_durations, trace_count = parse_event_log(log)
     dashboard.generate_and_serve_dashboard(metrics, transitions, reasons)
 
@@ -59,6 +67,8 @@ if __name__ == '__main__':
     parser.add_argument('--reasons_report', type=str,
                         help='Path to the report created by the program from Lashkevich et al.')
     parser.add_argument('--top_k', type=int, help='filter the event log by top k most frequent paths')
+    parser.add_argument('--case', type=str, default=None, help='filter the data by a specific case')
+
     args = parser.parse_args()
     kwargs = vars(args)
     main(**kwargs)
