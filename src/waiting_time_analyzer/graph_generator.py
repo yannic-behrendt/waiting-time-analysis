@@ -24,6 +24,8 @@ def select_custom_tickvals(data, num_ticks=5):
     min_val = min(data)
     max_val = max(data)
 
+    if min_val == max_val: return data
+
     # Calculate the tick interval to achieve even spacing
     tick_interval = (max_val - min_val) / (num_ticks - 1)
 
@@ -139,33 +141,37 @@ def generate_reasons_bar_chart(transition, reasons):
         x=categories,
         y=[wt_batching],
         name='Batching',
-        hovertemplate=seconds_to_dhms_string(wt_contention),
+        hovertemplate=seconds_to_dhms_string(wt_batching),
     ))
 
     fig.add_trace(go.Bar(
         x=categories,
         y=[wt_prio],
         name='Prioritization',
-        hovertemplate=seconds_to_dhms_string(wt_contention),
+        hovertemplate=seconds_to_dhms_string(wt_prio),
     ))
 
     fig.add_trace(go.Bar(
         x=categories,
         y=[wt_unavailability],
         name='Unavailability',
-        hovertemplate=seconds_to_dhms_string(wt_contention),
+        hovertemplate=seconds_to_dhms_string(wt_unavailability),
     ))
 
     fig.add_trace(go.Bar(
         x=categories,
         y=[wt_extraneous],
         name='Extraneous',
-        hovertemplate=seconds_to_dhms_string(wt_contention),
+        hovertemplate=seconds_to_dhms_string(wt_extraneous),
     ))
 
     # Define custom tick values and labels
-
-    tickvals = list(range(0, int(wt_total) + 1, int(wt_total // 10)))
+    tickvals = [wt_contention,
+                wt_contention + wt_batching,
+                wt_contention + wt_batching + wt_prio,
+                wt_contention + wt_batching + wt_prio + wt_unavailability,
+                wt_contention + wt_batching + wt_prio + wt_unavailability + wt_extraneous,
+                wt_total]
     ticktext = [seconds_to_dhms_string(s) for s in tickvals]
 
     # Update layout to stack bars and customize y-axis
