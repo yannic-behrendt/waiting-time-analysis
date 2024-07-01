@@ -1,8 +1,9 @@
 import dash
 from dash import html, dcc, callback, Output, Input
 
-from graph_generator import get_transition_from_hover_data, generate_scatter, \
-    generate_histogram, generate_sankey, generate_reasons_bar_chart, generate_box_chart
+from graph_generator import get_transition_from_hover_data, \
+    generate_histogram, generate_sankey, generate_reasons_bar_chart, generate_box_chart, get_all_wait_time_data
+from src.waiting_time_analyzer import config
 
 
 def generate_and_serve_dashboard(metrics, transitions, reasons):
@@ -38,14 +39,13 @@ def generate_and_serve_dashboard(metrics, transitions, reasons):
         ]),
 
         html.Div([
-            html.Div([dcc.Graph(id='box-chart', figure={})], style={'flex': 2}),
-            html.Div([dcc.Graph(id='scatter-plot', figure={})], style={'flex': 1}),
-        ], style={'display': 'flex', 'width': '100%'}),  # First row
+            html.Div([dcc.Graph(id='box-chart', figure={})], style={'flex': 4}),
+        ], style={'display': 'flex', 'width': '100%'}),
 
         html.Div([
-            html.Div([dcc.Graph(id='hist-plot', figure={})], style={'flex': 2}),
+            html.Div([dcc.Graph(id='hist-plot', figure={})], style={'flex': 3}),
             html.Div([dcc.Graph(id='reasons-plot', figure={})], style={'flex': 1}),
-        ], style={'display': 'flex', 'width': '100%'})  # Second row
+        ], style={'display': 'flex', 'width': '100%'})
     ], style={'display': 'flex', 'flex-direction': 'column', 'width': '100%'})
 
     # Overall layout
@@ -60,7 +60,6 @@ def generate_and_serve_dashboard(metrics, transitions, reasons):
 
     @callback(
         Output('box-chart', 'figure'),
-        Output('scatter-plot', 'figure'),
         Output('hist-plot', 'figure'),
         Output('reasons-plot', 'figure'),
         Output('hover-transition', 'children'),
@@ -71,14 +70,16 @@ def generate_and_serve_dashboard(metrics, transitions, reasons):
         transition = get_transition_from_hover_data(transitions, hover_data)
 
         if transition is None:
-            return {}, {}, {}, {}, "Hover over an activity node to see details"
+            return (generate_box_chart(get_all_wait_time_data(transitions), color_scale_global),
+                    generate_histogram(get_all_wait_time_data(transitions), color_scale_global),
+                    generate_reasons_bar_chart({}, reasons, True),
+                    "Hover over an activity node to see details")
 
         if color_scale_global:
             color_scale_global = (min(metrics['min']), max(metrics['max']))
 
-        return (generate_box_chart(transitions[transition]),
-                generate_scatter(transitions[transition], color_scale_global),
-                generate_histogram(transition, transitions, color_scale_global),
+        return (generate_box_chart(transitions[transition][config.WAITING], color_scale_global),
+                generate_histogram(transitions[transition][config.WAITING], color_scale_global),
                 generate_reasons_bar_chart(transition, reasons),
                 f'{transition[0]} --> {transition[1]}'
                 )

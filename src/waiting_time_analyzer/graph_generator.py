@@ -1,4 +1,5 @@
 import math
+from pprint import pprint
 
 from src.waiting_time_analyzer import config
 import numpy as np
@@ -58,11 +59,8 @@ def get_color(value, min_value, max_value):
     return f'hsl({hue}, {saturation}%, {lightness}%)'
 
 
-def generate_scatter(transition, color_scale_global):
-    if transition is None:
-        return {'layout': go.Layout(title=f'Hover over Link for information')}
-
-    y_axis = transition[config.WAITING]
+def generate_scatter(waiting_times, color_scale_global):
+    y_axis = waiting_times
     x_axis = [i for i in range(len(y_axis))]
 
     y_ticks = select_custom_tickvals(y_axis)
@@ -84,23 +82,30 @@ def generate_scatter(transition, color_scale_global):
     }
 
 
-def generate_box_chart(data):
-    waiting_times = data[config.WAITING]
+def generate_box_chart(waiting_times, color_scale_global):
     hover_text = [seconds_to_dhms_string(time) for time in waiting_times]
 
     unique_values, value_counts = np.unique(waiting_times, return_counts=True)
-    x_ticks = select_custom_tickvals(waiting_times, math.floor(len(unique_values) / 10))
+    x_ticks = select_custom_tickvals(waiting_times, math.floor(len(unique_values) / 33))
 
-    fig = go.Figure(
-        data=go.Box(
-            name='',
-            x=waiting_times,
-            boxpoints='all',
-            jitter=0.3,
-            pointpos=-1.8,
-            hovertemplate=hover_text,
-        )
+    fig = go.Figure()
+
+    fig.add_trace(go.Box(
+        name='',
+        x=waiting_times,
+        boxpoints=False,
+        hovertemplate=hover_text,
+        showlegend=False
     )
+    )
+    fig.add_trace(go.Scatter(
+        name='',
+        x=waiting_times,
+        y=[1] * len(waiting_times),
+        mode='markers',
+        marker=dict(color=get_colors(waiting_times, color_scale_global)),
+        showlegend=False
+    ))
 
     # Update layout
     fig.update_layout(
@@ -114,9 +119,10 @@ def generate_box_chart(data):
     return fig
 
 
-def generate_reasons_bar_chart(transition, reasons):
-    reasons = reasons[
-        (reasons[config.REASONS_SRC] == transition[0]) & (reasons[config.REASONS_DEST] == transition[1])]
+def generate_reasons_bar_chart(transition, reasons, all_activities=False):
+    if not all_activities:
+        reasons = reasons[
+            (reasons[config.REASONS_SRC] == transition[0]) & (reasons[config.REASONS_DEST] == transition[1])]
 
     wt_total = reasons[config.REASONS_TOTAL].sum()
     wt_contention = reasons[config.REASONS_CONTENTION].sum()
@@ -174,7 +180,6 @@ def generate_reasons_bar_chart(transition, reasons):
                 wt_total]
     ticktext = [seconds_to_dhms_string(s) for s in tickvals]
 
-    # Update layout to stack bars and customize y-axis
     fig.update_layout(
         barmode='stack',
         yaxis_title='Total Waiting Time',
@@ -182,21 +187,27 @@ def generate_reasons_bar_chart(transition, reasons):
             tickmode='array',
             tickvals=tickvals,
             ticktext=ticktext
+        ),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.4,
+            xanchor="center",
+            x=0.5
         )
     )
 
     return fig
 
 
-def generate_histogram(transition, transitions, color_scale_global):
-    data = transitions[transition][config.WAITING]
-    data = [int(v) for v in data]
+def generate_histogram(waiting_times, color_scale_global):
+    waiting_times = [int(v) for v in waiting_times]
 
-    unique_values, value_counts = np.unique(data, return_counts=True)
-    x_ticks = select_custom_tickvals(data, math.floor(len(unique_values) / 10))
+    unique_values, value_counts = np.unique(waiting_times, return_counts=True)
+    x_ticks = select_custom_tickvals(waiting_times, math.floor(len(unique_values) / 33))
 
     trace = go.Histogram(
-        x=data,
+        x=waiting_times,
         nbinsx=len(unique_values),
         opacity=0.7,
         marker=dict(color=get_colors(unique_values, color_scale_global)),
@@ -238,6 +249,12 @@ def generate_sankey(metric_name, metrics, transitions, color_scale_global=False)
             customdata=[seconds_to_dhms_string(v) for v in metrics[metric_name]],
             hovertemplate=metric_name + ": %{customdata}"
         )))
+
+
+def get_all_wait_time_data(transition_data):
+    waiting_times = [transition[config.WAITING] for transition in transition_data.values()]
+    waiting_times = [wt for wt_list in waiting_times for wt in wt_list]
+    return waiting_times
 
 
 def get_transition_from_hover_data(transitions, hover_data):

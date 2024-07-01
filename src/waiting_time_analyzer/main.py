@@ -54,7 +54,6 @@ def main(**keyword_arguments):
         log = log[(log[config.TRACE] == keyword_arguments['case'])]
 
     dfg, sa, ea = pm4py.discover_dfg(log)
-    pm4py.view_dfg(dfg, sa, ea)
 
     activities, transitions, metrics, trace_durations, trace_count = parse_event_log(log)
     dashboard.generate_and_serve_dashboard(metrics, transitions, reasons)
