@@ -119,17 +119,13 @@ def generate_box_chart(waiting_times, color_scale_global):
     return fig
 
 
-def generate_reasons_bar_chart(transition, reasons, all_activities=False):
-    if not all_activities:
-        reasons = reasons[
-            (reasons[config.REASONS_SRC] == transition[0]) & (reasons[config.REASONS_DEST] == transition[1])]
-
-    wt_total = reasons[config.REASONS_TOTAL].sum()
-    wt_contention = reasons[config.REASONS_CONTENTION].sum()
-    wt_batching = reasons[config.REASONS_BATCHING].sum()
-    wt_prio = reasons[config.REASONS_PRIO].sum()
-    wt_unavailability = reasons[config.REASONS_UNAVAILABILITY].sum()
-    wt_extraneous = reasons[config.REASONS_EXTRANEOUS].sum()
+def generate_reasons_bar_chart(performance_data):
+    wt_total = performance_data[config.REASONS_TOTAL].sum()
+    wt_contention = performance_data[config.REASONS_CONTENTION].sum()
+    wt_batching = performance_data[config.REASONS_BATCHING].sum()
+    wt_prio = performance_data[config.REASONS_PRIO].sum()
+    wt_unavailability = performance_data[config.REASONS_UNAVAILABILITY].sum()
+    wt_extraneous = performance_data[config.REASONS_EXTRANEOUS].sum()
 
     categories = ['Wait Time Reasons']
 
@@ -225,11 +221,14 @@ def generate_histogram(waiting_times, color_scale_global):
     return go.Figure(data=[trace], layout=layout)
 
 
-def generate_sankey(metric_name, metrics, transitions, color_scale_global=False):
-    source, target = zip(*transitions.keys())
+def generate_sankey(transitions, waiting_times, color_scale_global=False):
+    source, target = zip(*transitions)
     node_labels = list(set(source + target))
-    source_nodes = [node_labels.index(transition[0]) for transition in transitions.keys()]
-    target_nodes = [node_labels.index(transition[1]) for transition in transitions.keys()]
+    source_nodes = [node_labels.index(transition[0]) for transition in transitions]
+    target_nodes = [node_labels.index(transition[1]) for transition in transitions]
+
+    # use median as metric for now
+    waiting_times = [wt.median() for wt in waiting_times]
 
     return go.Figure(go.Sankey(
         arrangement="snap",
@@ -244,21 +243,32 @@ def generate_sankey(metric_name, metrics, transitions, color_scale_global=False)
         link=dict(
             source=source_nodes,
             target=target_nodes,
-            value=metrics[metric_name],
-            color=get_colors(metrics[metric_name], color_scale_global),
-            customdata=[seconds_to_dhms_string(v) for v in metrics[metric_name]],
-            hovertemplate=metric_name + ": %{customdata}"
+            value=waiting_times,
+            # color=get_colors(metrics[metric_name], color_scale_global),
+            customdata=[seconds_to_dhms_string(v) for v in waiting_times],
+            hovertemplate="waiting_time: %{customdata}"
         )))
 
 
-def get_all_wait_time_data(transition_data):
-    waiting_times = [transition[config.WAITING] for transition in transition_data.values()]
+def get_all_waiting_times_as_list(performance_data):
+    waiting_times = [performance_data[config.REASONS_TOTAL]]
     waiting_times = [wt for wt_list in waiting_times for wt in wt_list]
     return waiting_times
 
 
+def get_performance_data_for(transition, performance_data):
+    return performance_data[
+        (performance_data[config.REASONS_SRC] == transition[0]) &
+        (performance_data[config.REASONS_DEST] == transition[1])]
+
+
+def get_waiting_times_for(transition, performance_data):
+    data = get_performance_data_for(transition, performance_data)
+    return data[config.REASONS_TOTAL]
+
+
 def get_transition_from_hover_data(transitions, hover_data):
-    source, target = zip(*transitions.keys())
+    source, target = zip(*transitions)
     if hover_data is None:
         return
     if 'group' in hover_data['points'][0]: return

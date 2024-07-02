@@ -2,11 +2,11 @@ import dash
 from dash import html, dcc, callback, Output, Input
 
 from graph_generator import get_transition_from_hover_data, \
-    generate_histogram, generate_sankey, generate_reasons_bar_chart, generate_box_chart, get_all_wait_time_data
-from src.waiting_time_analyzer import config
+    generate_histogram, generate_sankey, generate_reasons_bar_chart, generate_box_chart, get_all_waiting_times_as_list, \
+    get_performance_data_for, get_waiting_times_for
 
 
-def generate_and_serve_dashboard(metrics, transitions, reasons):
+def generate_and_serve_dashboard(transitions, performance_data):
     app = dash.Dash(__name__)
 
     sankey_div = html.Div([dcc.Graph(id='sankey-plot')], style={'padding': '20px'})
@@ -14,11 +14,11 @@ def generate_and_serve_dashboard(metrics, transitions, reasons):
     # Filter div with 33% width
     filter_div = html.Div(
         children=[
-            dcc.Dropdown(
-                id='metric-dropdown',
-                options=[{'label': key, 'value': key} for key in metrics.keys()],
-                value='median',
-            ),
+            # dcc.Dropdown(
+            #     id='metric-dropdown',
+            #     options=[{'label': key, 'value': key} for key in metrics.keys()],
+            #     value='median',
+            # ),
             dcc.Checklist(
                 id='global-color-scale',
                 options=[{'label': 'Use global color scale', 'value': True}],
@@ -67,34 +67,38 @@ def generate_and_serve_dashboard(metrics, transitions, reasons):
         Input('global-color-scale', 'value')
     )
     def update_details(hover_data, color_scale_global):
+        _performance_data = performance_data
         transition = get_transition_from_hover_data(transitions, hover_data)
 
-        if transition is None:
-            return (generate_box_chart(get_all_wait_time_data(transitions), color_scale_global),
-                    generate_histogram(get_all_wait_time_data(transitions), color_scale_global),
-                    generate_reasons_bar_chart({}, reasons, True),
-                    "Hover over an activity node to see details")
+        if transition is not None:
+            _performance_data = get_performance_data_for(transition, _performance_data)
+            help_text = f'{transition[0]} --> {transition[1]}'
+        else:
+            help_text = 'Hover over a node to see info for that node'
 
-        if color_scale_global:
-            color_scale_global = (min(metrics['min']), max(metrics['max']))
+        waiting_times = get_all_waiting_times_as_list(_performance_data)
 
-        return (generate_box_chart(transitions[transition][config.WAITING], color_scale_global),
-                generate_histogram(transitions[transition][config.WAITING], color_scale_global),
-                generate_reasons_bar_chart(transition, reasons),
-                f'{transition[0]} --> {transition[1]}'
+        # todo rework
+        # if color_scale_global:
+        #     color_scale_global = (waiting_times.min(), max(metrics['max']))
+
+        return (generate_box_chart(waiting_times, color_scale_global),
+                generate_histogram(waiting_times, color_scale_global),
+                generate_reasons_bar_chart(_performance_data),
+                help_text
                 )
 
     # Filter Sankey
     @callback(
         Output('sankey-plot', 'figure'),
-        Input('metric-dropdown', 'value'),
+        # Input('metric-dropdown', 'value'),
         Input('global-color-scale', 'value')
     )
-    def update_sankey(metric, color_scale_global):
+    def update_sankey(color_scale_global):
+        # if color_scale_global:
+        #     color_scale_global = (min(metrics['min']), max(metrics['max']))
 
-        if color_scale_global:
-            color_scale_global = (min(metrics['min']), max(metrics['max']))
-
-        return generate_sankey(metric, metrics, transitions, color_scale_global)
+        waiting_times = [get_waiting_times_for(transition, performance_data) for transition in transitions]
+        return generate_sankey(transitions, waiting_times)
 
     app.run_server()

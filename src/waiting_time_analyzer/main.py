@@ -39,24 +39,21 @@ def get_event_log_from_xes(xes_file, top_k=1):
 
 
 def main(**keyword_arguments):
-    print("Keyword arguments:", keyword_arguments)
-
     if keyword_arguments['event_log'].endswith('.csv'):
         log = get_event_log_from_csv(keyword_arguments['event_log'], top_k=keyword_arguments['top_k'])
     else:
         log = get_event_log_from_xes(keyword_arguments['event_log'], top_k=keyword_arguments['top_k'])
 
-    reasons = get_lashkevich_reasons(keyword_arguments['reasons_report'])
+    performance_analysis = get_lashkevich_reasons(keyword_arguments['reasons_report'])
 
     if keyword_arguments['case'] is not None:
-        print('not none')
-        reasons = reasons[(reasons[config.REASONS_TRACE] == keyword_arguments['case'])]
+        performance_analysis = performance_analysis[(performance_analysis[config.REASONS_TRACE] == keyword_arguments['case'])]
         log = log[(log[config.TRACE] == keyword_arguments['case'])]
 
     dfg, sa, ea = pm4py.discover_dfg(log)
 
     activities, transitions, metrics, trace_durations, trace_count = parse_event_log(log)
-    dashboard.generate_and_serve_dashboard(metrics, transitions, reasons)
+    dashboard.generate_and_serve_dashboard(list(dfg.keys()), performance_analysis)
 
 
 if __name__ == '__main__':
@@ -65,7 +62,7 @@ if __name__ == '__main__':
     parser.add_argument('--event_log', type=str, help='Path to the eventlog file in xes or csv')
     parser.add_argument('--reasons_report', type=str,
                         help='Path to the report created by the program from Lashkevich et al.')
-    parser.add_argument('--top_k', type=int, help='filter the event log by top k most frequent paths')
+    parser.add_argument('--top_k', type=int, default=10, help='filter the event log by top k most frequent paths')
     parser.add_argument('--case', type=str, default=None, help='filter the data by a specific case')
 
     args = parser.parse_args()
