@@ -3,7 +3,8 @@ from dash import html, dcc, callback, Output, Input
 
 from graph_generator import get_transition_from_hover_data, \
     generate_histogram, generate_sankey, generate_reasons_bar_chart, generate_box_chart, get_all_waiting_times_as_list, \
-    get_performance_data_for, get_waiting_times_for
+    get_performance_data_for, get_waiting_times_for, compute_waiting_times_for
+from src.waiting_time_analyzer import config
 
 
 def generate_and_serve_dashboard(transitions, performance_data):
@@ -14,11 +15,11 @@ def generate_and_serve_dashboard(transitions, performance_data):
     # Filter div with 33% width
     filter_div = html.Div(
         children=[
-            # dcc.Dropdown(
-            #     id='metric-dropdown',
-            #     options=[{'label': key, 'value': key} for key in metrics.keys()],
-            #     value='median',
-            # ),
+            dcc.Dropdown(
+                id='metric-dropdown',
+                options=[{'label': metric.name.capitalize(), 'value': metric.value} for metric in config.Metrics],
+                value='median',
+            ),
             dcc.Checklist(
                 id='global-color-scale',
                 options=[{'label': 'Use global color scale', 'value': True}],
@@ -78,9 +79,9 @@ def generate_and_serve_dashboard(transitions, performance_data):
 
         waiting_times = get_all_waiting_times_as_list(_performance_data)
 
-        # todo rework
-        # if color_scale_global:
-        #     color_scale_global = (waiting_times.min(), max(metrics['max']))
+        if color_scale_global:
+            color_scale_global = (min(get_all_waiting_times_as_list(performance_data)),
+                                  max(get_all_waiting_times_as_list(performance_data)))
 
         return (generate_box_chart(waiting_times, color_scale_global),
                 generate_histogram(waiting_times, color_scale_global),
@@ -91,14 +92,19 @@ def generate_and_serve_dashboard(transitions, performance_data):
     # Filter Sankey
     @callback(
         Output('sankey-plot', 'figure'),
-        # Input('metric-dropdown', 'value'),
+        Input('metric-dropdown', 'value'),
         Input('global-color-scale', 'value')
     )
-    def update_sankey(color_scale_global):
-        # if color_scale_global:
-        #     color_scale_global = (min(metrics['min']), max(metrics['max']))
-
+    def update_sankey(metric, color_scale_global):
         waiting_times = [get_waiting_times_for(transition, performance_data) for transition in transitions]
-        return generate_sankey(transitions, waiting_times)
+        waiting_times = compute_waiting_times_for(waiting_times, metric)
+
+        print(len(waiting_times))
+
+        if color_scale_global:
+            color_scale_global = (min(get_all_waiting_times_as_list(performance_data)),
+                                  max(get_all_waiting_times_as_list(performance_data)))
+
+        return generate_sankey(transitions, waiting_times, color_scale_global)
 
     app.run_server()

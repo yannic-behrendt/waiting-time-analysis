@@ -5,6 +5,8 @@ from src.waiting_time_analyzer import config
 import numpy as np
 import plotly.graph_objects as go
 
+from src.waiting_time_analyzer.config import Metrics
+
 
 def seconds_to_dhms_string(seconds):
     days, remainder = divmod(seconds, 86400)
@@ -227,9 +229,6 @@ def generate_sankey(transitions, waiting_times, color_scale_global=False):
     source_nodes = [node_labels.index(transition[0]) for transition in transitions]
     target_nodes = [node_labels.index(transition[1]) for transition in transitions]
 
-    # use median as metric for now
-    waiting_times = [wt.median() for wt in waiting_times]
-
     return go.Figure(go.Sankey(
         arrangement="snap",
         valuesuffix="s",
@@ -244,7 +243,7 @@ def generate_sankey(transitions, waiting_times, color_scale_global=False):
             source=source_nodes,
             target=target_nodes,
             value=waiting_times,
-            # color=get_colors(metrics[metric_name], color_scale_global),
+            color=get_colors(waiting_times, color_scale_global),
             customdata=[seconds_to_dhms_string(v) for v in waiting_times],
             hovertemplate="waiting_time: %{customdata}"
         )))
@@ -265,6 +264,22 @@ def get_performance_data_for(transition, performance_data):
 def get_waiting_times_for(transition, performance_data):
     data = get_performance_data_for(transition, performance_data)
     return data[config.REASONS_TOTAL]
+
+
+def compute_waiting_times_for(waiting_times_lists, metric: Metrics):
+    match metric:
+        case Metrics.MAX.value:
+            return [wt.max() for wt in waiting_times_lists]
+        case Metrics.MIN.value:
+            return [wt.min() for wt in waiting_times_lists]
+        case Metrics.STDEV.value:
+            return [wt.stdev() for wt in waiting_times_lists]
+        case Metrics.MEDIAN.value:
+            return [wt.median() for wt in waiting_times_lists]
+        case Metrics.MEAN.value:
+            return [wt.mean() for wt in waiting_times_lists]
+        case Metrics.SUM.value:
+            return [wt.sum() for wt in waiting_times_lists]
 
 
 def get_transition_from_hover_data(transitions, hover_data):

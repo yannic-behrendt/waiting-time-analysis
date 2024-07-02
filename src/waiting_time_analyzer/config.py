@@ -1,3 +1,5 @@
+from enum import Enum
+
 ACTIVITY = "concept:name"
 TRACE = "case:concept:name"
 TIMESTAMP = "time:timestamp"
@@ -14,3 +16,12 @@ REASONS_PRIO = "wt_prioritization"
 REASONS_UNAVAILABILITY = "wt_unavailability"
 REASONS_EXTRANEOUS = "wt_extraneous"
 REASONS_TRACE = "case_id"
+
+
+class Metrics(Enum):
+    MIN = 'min'
+    MAX = 'max'
+    STDEV = 'stdev'
+    MEDIAN = 'median'
+    MEAN = 'mean'
+    SUM = 'sum'
