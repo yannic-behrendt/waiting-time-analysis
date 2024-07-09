@@ -20,10 +20,6 @@ https://github.com/AutomatedProcessImprovement/waiting-time-analysis/blob/caise2
 
 In [config](/src/waiting_time_analyzer/config.py) the names of the columns in the event log and performance analysis can be customized.
 
-````python
-
-
-````
 
 ## starting 
 
