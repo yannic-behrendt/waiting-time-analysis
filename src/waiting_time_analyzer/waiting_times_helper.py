@@ -10,6 +10,7 @@ def filter_performance_data_for_transition(data, transition):
 
 
 def compute_waiting_times_metric(perfromance_data, metric: Metrics, notion):
+
     match metric:
         case Metrics.MAX.value:
             return perfromance_data[notion].max()

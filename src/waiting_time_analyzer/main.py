@@ -116,7 +116,7 @@ def insert_simple_wait_time(event_log, performance_analysis):
 
         performance_analysis.loc[row, config.SIMPLE] = waiting_time
 
-    performance_analysis = performance_analysis[config.SIMPLE].replace(0, 1e-10)
+    performance_analysis[config.SIMPLE] = performance_analysis[config.SIMPLE].replace(0.0, 1e-10)
     return performance_analysis
 
 

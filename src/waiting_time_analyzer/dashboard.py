@@ -95,8 +95,6 @@ def generate_and_serve_dashboard(transitions, performance_data):
         waiting_times_metric_by_transition = []
 
         for transition in transitions:
-            print(transition)
-
             filtered_data = filter_performance_data_for_transition(performance_data, transition)
             waiting_times_metric = compute_waiting_times_metric(filtered_data, metric, notion)
             waiting_times_metric_by_transition.append(waiting_times_metric)
