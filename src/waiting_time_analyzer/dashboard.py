@@ -1,10 +1,9 @@
 import dash
 from dash import html, dcc, callback, Output, Input
 
-from graph_generator import get_transition_from_hover_data, \
-    generate_histogram, generate_sankey, generate_reasons_bar_chart, generate_box_chart, get_all_waiting_times_as_list, \
-    get_performance_data_for, get_waiting_times_for, compute_waiting_times_for
-from src.waiting_time_analyzer import config
+from graph_generator import generate_histogram, generate_sankey, generate_reasons_bar_chart, generate_box_chart
+from src.waiting_time_analyzer.config import Metrics, Notions
+from src.waiting_time_analyzer.waiting_times_helper import filter_performance_data_for_transition, compute_waiting_times_metric
 
 
 def generate_and_serve_dashboard(transitions, performance_data):
@@ -17,8 +16,13 @@ def generate_and_serve_dashboard(transitions, performance_data):
         children=[
             dcc.Dropdown(
                 id='metric-dropdown',
-                options=[{'label': metric.name.capitalize(), 'value': metric.value} for metric in config.Metrics],
-                value='median',
+                options=[{'label': metric.name.capitalize(), 'value': metric.value} for metric in Metrics],
+                value=Metrics.MEDIAN.value,
+            ),
+            dcc.Dropdown(
+                id='notion-selector',
+                options=[{'label': notion.name.capitalize(), 'value': notion.value} for notion in Notions],
+                value=Notions.CONTROL_FLOW.value,
             ),
             dcc.Checklist(
                 id='global-color-scale',
@@ -65,46 +69,50 @@ def generate_and_serve_dashboard(transitions, performance_data):
         Output('reasons-plot', 'figure'),
         Output('hover-transition', 'children'),
         Input('sankey-plot', 'hoverData'),
-        Input('global-color-scale', 'value')
+        Input('global-color-scale', 'value'),
+        Input('notion-selector', 'value')
     )
-    def update_details(hover_data, color_scale_global):
-        _performance_data = performance_data
+    def update_details(hover_data, color_scale_global, notion):
         transition = get_transition_from_hover_data(transitions, hover_data)
+        filtered_performance_data = filter_performance_data_for_transition(performance_data, transition)
+        waiting_times = filtered_performance_data[notion]
 
-        if transition is not None:
-            _performance_data = get_performance_data_for(transition, _performance_data)
-            help_text = f'{transition[0]} --> {transition[1]}'
-        else:
-            help_text = 'Hover over a node to see info for that node'
-
-        waiting_times = get_all_waiting_times_as_list(_performance_data)
-
-        if color_scale_global:
-            color_scale_global = (min(get_all_waiting_times_as_list(performance_data)),
-                                  max(get_all_waiting_times_as_list(performance_data)))
+        help_text = 'Hover over a node to see info for that node' if transition is None else f'{transition[0]} --> {transition[1]}'
+        color_scale_global = (waiting_times.min(), waiting_times.max()) if color_scale_global else color_scale_global
 
         return (generate_box_chart(waiting_times, color_scale_global),
                 generate_histogram(waiting_times, color_scale_global),
-                generate_reasons_bar_chart(_performance_data),
-                help_text
-                )
+                generate_reasons_bar_chart(filtered_performance_data),
+                help_text)
 
-    # Filter Sankey
     @callback(
         Output('sankey-plot', 'figure'),
         Input('metric-dropdown', 'value'),
-        Input('global-color-scale', 'value')
+        Input('global-color-scale', 'value'),
+        Input('notion-selector', 'value')
     )
-    def update_sankey(metric, color_scale_global):
-        waiting_times = [get_waiting_times_for(transition, performance_data) for transition in transitions]
-        waiting_times = compute_waiting_times_for(waiting_times, metric)
+    def update_sankey(metric: Metrics, color_scale_global, notion):
+        waiting_times_metric_by_transition = []
 
-        print(len(waiting_times))
+        for transition in transitions:
+            print(transition)
 
-        if color_scale_global:
-            color_scale_global = (min(get_all_waiting_times_as_list(performance_data)),
-                                  max(get_all_waiting_times_as_list(performance_data)))
+            filtered_data = filter_performance_data_for_transition(performance_data, transition)
+            waiting_times_metric = compute_waiting_times_metric(filtered_data, metric, notion)
+            waiting_times_metric_by_transition.append(waiting_times_metric)
 
-        return generate_sankey(transitions, waiting_times, color_scale_global)
+        color_scale_global = (performance_data[notion].min(),
+                              performance_data[notion].max()) if color_scale_global else color_scale_global
+
+        return generate_sankey(transitions, waiting_times_metric_by_transition, color_scale_global)
 
     app.run_server()
+
+
+def get_transition_from_hover_data(transitions, hover_data):
+    source, target = zip(*transitions)
+    if hover_data is None:
+        return
+    if 'group' in hover_data['points'][0]: return
+    idx = hover_data['points'][0]['index']
+    return source[idx], target[idx]

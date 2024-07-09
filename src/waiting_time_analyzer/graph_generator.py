@@ -1,11 +1,8 @@
 import math
-from pprint import pprint
 
 from src.waiting_time_analyzer import config
 import numpy as np
 import plotly.graph_objects as go
-
-from src.waiting_time_analyzer.config import Metrics
 
 
 def seconds_to_dhms_string(seconds):
@@ -122,12 +119,12 @@ def generate_box_chart(waiting_times, color_scale_global):
 
 
 def generate_reasons_bar_chart(performance_data):
-    wt_total = performance_data[config.REASONS_TOTAL].sum()
-    wt_contention = performance_data[config.REASONS_CONTENTION].sum()
-    wt_batching = performance_data[config.REASONS_BATCHING].sum()
-    wt_prio = performance_data[config.REASONS_PRIO].sum()
-    wt_unavailability = performance_data[config.REASONS_UNAVAILABILITY].sum()
-    wt_extraneous = performance_data[config.REASONS_EXTRANEOUS].sum()
+    wt_total = performance_data[config.TOTAL].sum()
+    wt_contention = performance_data[config.CONTENTION].sum()
+    wt_batching = performance_data[config.BATCHING].sum()
+    wt_prio = performance_data[config.PRIO].sum()
+    wt_unavailability = performance_data[config.UNAVAILABILITY].sum()
+    wt_extraneous = performance_data[config.EXTRANEOUS].sum()
 
     categories = ['Wait Time Reasons']
 
@@ -247,45 +244,3 @@ def generate_sankey(transitions, waiting_times, color_scale_global=False):
             customdata=[seconds_to_dhms_string(v) for v in waiting_times],
             hovertemplate="waiting_time: %{customdata}"
         )))
-
-
-def get_all_waiting_times_as_list(performance_data):
-    waiting_times = [performance_data[config.REASONS_TOTAL]]
-    waiting_times = [wt for wt_list in waiting_times for wt in wt_list]
-    return waiting_times
-
-
-def get_performance_data_for(transition, performance_data):
-    return performance_data[
-        (performance_data[config.REASONS_SRC] == transition[0]) &
-        (performance_data[config.REASONS_DEST] == transition[1])]
-
-
-def get_waiting_times_for(transition, performance_data):
-    data = get_performance_data_for(transition, performance_data)
-    return data[config.REASONS_TOTAL]
-
-
-def compute_waiting_times_for(waiting_times_lists, metric: Metrics):
-    match metric:
-        case Metrics.MAX.value:
-            return [wt.max() for wt in waiting_times_lists]
-        case Metrics.MIN.value:
-            return [wt.min() for wt in waiting_times_lists]
-        case Metrics.STDEV.value:
-            return [wt.stdev() for wt in waiting_times_lists]
-        case Metrics.MEDIAN.value:
-            return [wt.median() for wt in waiting_times_lists]
-        case Metrics.MEAN.value:
-            return [wt.mean() for wt in waiting_times_lists]
-        case Metrics.SUM.value:
-            return [wt.sum() for wt in waiting_times_lists]
-
-
-def get_transition_from_hover_data(transitions, hover_data):
-    source, target = zip(*transitions)
-    if hover_data is None:
-        return
-    if 'group' in hover_data['points'][0]: return
-    idx = hover_data['points'][0]['index']
-    return source[idx], target[idx]
